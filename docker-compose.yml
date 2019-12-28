@@ -1,0 +1,56 @@
+version: "2"
+services:
+  bookstack:
+    image: linuxserver/bookstack
+    container_name: bookstack
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - DB_HOST=bookstack_db
+      - DB_USER=bookstack
+      - DB_PASS=$MYSQL_ROOT_PASSWORD
+      - DB_DATABASE=bookstackapp
+      - APP_URL=https://bookstack.${DOMAIN}
+    volumes:
+      - $STACK_DATA/app:/config
+    networks:
+      - bookstack
+      - webapp
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bookstack.rule=Host(`bookstack.${DOMAIN}`)"
+      - "traefik.http.routers.bookstack.entrypoints=websecure"
+      - "traefik.http.routers.bookstack.tls.certresolver=leresolver"
+      - "traefik.http.middlewares.bookstackHeaders.headers.contentSecurityPolicy=default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval';"
+      - "traefik.http.middlewares.bookstackHeaders.headers.framedeny=true"
+      - "traefik.http.middlewares.bookstackHeaders.headers.sslredirect=true"
+      - "traefik.http.middlewares.bookstackHeaders.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.bookstackHeaders.headers.stsPreload=true"
+      - "traefik.http.middlewares.bookstackHeaders.headers.forceSTSHeader=true"
+      - "traefik.http.middlewares.bookstackHeaders.headers.browserXssFilter=true"
+      - "traefik.http.middlewares.bookstackHeaders.headers.stsSeconds=31536000"
+      - "traefik.http.routers.bookstack.middlewares=bookstackHeaders"
+    restart: unless-stopped
+    depends_on:
+      - bookstack_db
+  bookstack_db:
+    image: linuxserver/mariadb
+    container_name: bookstack_db
+    networks:
+      - bookstack
+    environment:
+      - PUID=$PUID
+      - PGID=$PUID
+      - MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+      - TZ=$TIME_ZONE
+      - MYSQL_DATABASE=bookstackapp
+      - MYSQL_USER=bookstack
+      - MYSQL_PASSWORD=$MYSQL_ROOT_PASSWORD
+    volumes:
+      - $STACK_DATA/db:/config
+    restart: unless-stopped
+networks:
+  bookstack:
+  webapp:
+    external:
+      name: 'webapp'
